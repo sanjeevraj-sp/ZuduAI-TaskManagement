@@ -13,7 +13,7 @@ import { useDispatch } from "react-redux";
 import { loginSuccess } from "../../redux/slices/authSlice";
 import { validateFormByType } from "../../utils/formValidation";
 import { FORM_TYPES } from "../../constants/forms/formTypes";
-import { http } from "../../services/httpServices";
+import  http  from "../../services/httpServices";
 import ErrorBoundary from "../../utils/fallBackUI";
 
 const Register = () => {

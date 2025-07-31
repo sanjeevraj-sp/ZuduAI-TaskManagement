@@ -24,32 +24,52 @@ export const authHandlers = [
       id: user.id,
       email: user.email,
       role: user.role,
+      roleId: user.roleId,
+      roleName: user.roleName,
     });
 
     const userWithoutPassword = { ...user };
     delete userWithoutPassword.password;
 
     return HttpResponse.json(
-      { token, user: userWithoutPassword },
+      {
+        token,
+        user: {
+          ...userWithoutPassword,
+          roleId: user.roleId,
+          roleName: user.roleName,
+        },
+      },
       { status: 200 }
     );
   }),
 
   http.post("/api/auth/register", async ({ request }, ctx) => {
     const { name, email, password } = await request.json();
+
     try {
       const user = await registerUser({ name, email, password });
+
       const token = createJWT({
         id: user.id,
         email: user.email,
         role: user.role,
+        roleId: user.roleId,
+        roleName: user.roleName,
       });
 
       const userWithoutPassword = { ...user };
       delete userWithoutPassword.password;
 
       return HttpResponse.json(
-        { token, user: userWithoutPassword },
+        {
+          token,
+          user: {
+            ...userWithoutPassword,
+            roleId: user.roleId,
+            roleName: user.roleName,
+          },
+        },
         { status: 200 }
       );
     } catch (err) {

@@ -1,8 +1,10 @@
 import { combineReducers } from "redux";
 import authReducer from "./slices/authSlice";
+import taskReducer from "./slices/taskSlice";
 
 const appReducer = combineReducers({
   auth: authReducer,
+  task: taskReducer
 });
 
 const rootReducer = (state, action) => {

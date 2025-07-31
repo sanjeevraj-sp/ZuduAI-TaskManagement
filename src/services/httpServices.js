@@ -1,16 +1,23 @@
+// src/httpService.js
 import axios from "axios";
 
 const host = "/api";
 
-export const http = axios.create({
+const http = axios.create({
   baseURL: host,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-http.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+// Utility to inject token manually per request
+const setAuthToken = (token) => {
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    http.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete http.defaults.headers.common["Authorization"];
   }
-  return config;
-});
+};
+
+export default http;
+export { setAuthToken };

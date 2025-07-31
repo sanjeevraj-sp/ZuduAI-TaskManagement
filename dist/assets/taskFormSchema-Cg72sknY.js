@@ -1,0 +1,1 @@
+import{J as r}from"./index-upvku8zh.js";const s={name:r.string().min(3).required(),assignedUserIds:r.array().items(r.string()),priority:r.number().valid(0,1,2,3).required(),status:r.string().valid("Todo","In Progress","Completed").required()};export{s as default};
