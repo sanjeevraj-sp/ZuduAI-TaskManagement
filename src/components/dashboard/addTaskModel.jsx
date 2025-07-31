@@ -11,7 +11,7 @@ import {
   InputLabel,
   CircularProgress,
 } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { validateFormByType } from "../../utils/formValidation";
 import { FORM_TYPES } from "../../constants/forms/formTypes";
@@ -25,6 +25,7 @@ import PropTypes from "prop-types";
 
 const AddTaskModal = ({ open, onClose, task = null, type = "own" }) => {
   const { user, token } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
   const [form, setForm] = useState({
     name: "",
     priority: 0,
@@ -35,10 +36,9 @@ const AddTaskModal = ({ open, onClose, task = null, type = "own" }) => {
   const [apiError, setApiError] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const dispatch = useDispatch();
-  const isEditMode = !!task;
 
-  // Populate form with task data if editing
+  const isEditMode = useMemo(() => !!task, [task]);
+
   useEffect(() => {
     if (task) {
       setForm({
@@ -48,9 +48,9 @@ const AddTaskModal = ({ open, onClose, task = null, type = "own" }) => {
         status: task.status || "Todo",
       });
     } else {
-      setForm({ name: "", priority: 0, assignedUserIds: [user.id] });
+      setForm({ name: "", priority: 0, assignedUserIds: [user.id], status: "Todo" });
     }
-  }, [task]);
+  }, [task, user.id]);
 
   useEffect(() => {
     if (user.role === "Admin") {
@@ -67,24 +67,24 @@ const AddTaskModal = ({ open, onClose, task = null, type = "own" }) => {
           setLoadingUsers(false);
         });
     }
-  }, []);
+  }, [user.id, user.role]);
 
-  const handleClose = () => {
-    setForm({ name: "", priority: 0, assignedUserIds: [user.id] });
+  const handleClose = useCallback(() => {
+    setForm({ name: "", priority: 0, assignedUserIds: [user.id], status: "Todo" });
     setErrors({});
     setApiError("");
     onClose();
-  };
+  }, [onClose, user.id]);
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
       [name]: name === "priority" ? Number(value) : value,
     }));
-  };
+  }, []);
 
-  const handleUsersChange = (event) => {
+  const handleUsersChange = useCallback((event) => {
     let selected =
       typeof event.target.value === "string"
         ? event.target.value.split(",")
@@ -98,55 +98,65 @@ const AddTaskModal = ({ open, onClose, task = null, type = "own" }) => {
       ...prev,
       assignedUserIds: selected,
     }));
-  };
+  }, [user.id]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrors({});
-    setApiError("");
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setErrors({});
+      setApiError("");
 
-    try {
-      const sanitizedForm = { ...form };
-      delete sanitizedForm.users;
+      try {
+        const sanitizedForm = { ...form };
+        delete sanitizedForm.users;
 
-      const validationErrors = await validateFormByType(
-        FORM_TYPES.TASK,
-        sanitizedForm
-      );
-      if (validationErrors) {
-        setErrors(validationErrors);
-        return;
-      }
-
-      setAuthToken(token);
-
-      if (isEditMode) {
-        // Update Task
-        const res = await http.put(`/task/${task.id}`, sanitizedForm);
-        dispatch(updateTask({ task: res.data.task, type }));
-      } else {
-        // Create new task
-        const payload = {
-          ...form,
-          createdBy: user.id,
-          createdAt: new Date().toISOString(),
-          status: "Todo",
-        };
-        const res = await http.post("/task", payload);
-        const newTask = res.data;
-
-        if (newTask.action === "addOwnTask") {
-          dispatch(addOwnTask(newTask.task));
-        } else {
-          dispatch(addTeamTask(newTask.task));
+        const validationErrors = await validateFormByType(
+          FORM_TYPES.TASK,
+          sanitizedForm
+        );
+        if (validationErrors) {
+          setErrors(validationErrors);
+          return;
         }
-      }
 
-      handleClose();
-    } catch (err) {
-      setApiError(err.response?.data?.message || "Task operation failed");
-    }
-  };
+        setAuthToken(token);
+
+        if (isEditMode) {
+          const res = await http.put(`/task/${task.id}`, sanitizedForm);
+          dispatch(updateTask({ task: res.data.task, type }));
+        } else {
+          const payload = {
+            ...form,
+            createdBy: user.id,
+            createdAt: new Date().toISOString(),
+            status: "Todo",
+          };
+          const res = await http.post("/task", payload);
+          const newTask = res.data;
+
+          if (newTask.action === "addOwnTask") {
+            dispatch(addOwnTask(newTask.task));
+          } else {
+            dispatch(addTeamTask(newTask.task));
+          }
+        }
+
+        handleClose();
+      } catch (err) {
+        setApiError(err.response?.data?.message || "Task operation failed");
+      }
+    },
+    [form, handleClose, isEditMode, task?.id, dispatch, token, user.id, type]
+  );
+
+  const renderedUserNames = useCallback(
+    (selected) =>
+      allUsers
+        .filter((u) => selected.includes(u.id))
+        .map((u) => u.name || u.email)
+        .join(", "),
+    [allUsers]
+  );
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -192,12 +202,7 @@ const AddTaskModal = ({ open, onClose, task = null, type = "own" }) => {
                 multiple
                 value={form.assignedUserIds || []}
                 onChange={handleUsersChange}
-                renderValue={(selected) =>
-                  allUsers
-                    .filter((u) => selected.includes(u.id))
-                    .map((u) => u.name || u.email)
-                    .join(", ")
-                }
+                renderValue={renderedUserNames}
               >
                 {allUsers.map((u) => (
                   <MenuItem key={u.id} value={u.id}>

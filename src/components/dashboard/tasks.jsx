@@ -1,10 +1,10 @@
 import { Container, Typography, Button, Box } from "@mui/material";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { store } from "../../redux/store";
-import { logout } from "../../redux/slices/authSlice"; // Make sure you have this action
+import { logout } from "../../redux/slices/authSlice";
 import AddTaskModal from "./addTaskModel";
 import TaskBoard from "./taskBoard";
 
@@ -13,15 +13,19 @@ const Tasks = () => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  const handleLogout = () => {
-    dispatch(logout()); // Clear auth state
-    persistStore(store).purge(); // Clear persisted store
+  const handleLogout = useCallback(() => {
+    dispatch(logout());
+    persistStore(store).purge();
     navigate("/login");
-  };
+  }, [dispatch, navigate]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setOpen(false);
-  };
+  }, []);
+
+  const handleOpen = useCallback(() => {
+    setOpen(true);
+  }, []);
 
   return (
     <>
@@ -36,9 +40,8 @@ const Tasks = () => {
           <Typography variant="h4" gutterBottom>
             Your Tasks
           </Typography>
-          {/* Buttons aligned right */}
           <Box display="flex" alignItems="center">
-            <Button variant="contained" onClick={() => setOpen(true)}>
+            <Button variant="contained" onClick={handleOpen}>
               Add Task
             </Button>
             <Button

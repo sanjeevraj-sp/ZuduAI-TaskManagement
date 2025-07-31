@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -13,51 +13,58 @@ import { useDispatch } from "react-redux";
 import { loginSuccess } from "../../redux/slices/authSlice";
 import { validateFormByType } from "../../utils/formValidation";
 import { FORM_TYPES } from "../../constants/forms/formTypes";
-import  http  from "../../services/httpServices";
+import http from "../../services/httpServices";
 import ErrorBoundary from "../../utils/fallBackUI";
 
 const LogIn = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
-  const dispatch = useDispatch();
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value || "",
     }));
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const validationErrors = await validateFormByType(
-        FORM_TYPES.LOGIN,
-        formData
-      );
-      if (validationErrors) {
-        setErrors(validationErrors);
-        return;
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      try {
+        const validationErrors = await validateFormByType(
+          FORM_TYPES.LOGIN,
+          formData
+        );
+        if (validationErrors) {
+          setErrors(validationErrors);
+          return;
+        }
+
+        const res = await http.post("/auth/login", formData);
+        const data = res.data;
+
+        dispatch(
+          loginSuccess({
+            token: data.token,
+            user: data.user,
+          })
+        );
+
+        navigate("/dashboard");
+      } catch (err) {
+        setApiError(err.response?.data?.message || "Login failed");
       }
+    },
+    [dispatch, formData, navigate]
+  );
 
-      const res = await http.post("/auth/login", formData);
-      const data = res.data;
-
-      dispatch(
-        loginSuccess({
-          token: data.token,
-          user: data.user,
-        })
-      );
-
-      navigate("/dashboard");
-    } catch (err) {
-      setApiError(err.response?.data?.message || "Login failed");
-    }
-  };
+  const emailError = useMemo(() => errors.email, [errors.email]);
+  const passwordError = useMemo(() => errors.password, [errors.password]);
 
   return (
     <ErrorBoundary>
@@ -80,8 +87,8 @@ const LogIn = () => {
             fullWidth
             variant="outlined"
             onChange={handleChange}
-            error={!!errors.email}
-            helperText={errors.email}
+            error={!!emailError}
+            helperText={emailError}
           />
 
           <TextField
@@ -91,8 +98,8 @@ const LogIn = () => {
             fullWidth
             variant="outlined"
             onChange={handleChange}
-            error={!!errors.password}
-            helperText={errors.password}
+            error={!!passwordError}
+            helperText={passwordError}
           />
 
           <Button

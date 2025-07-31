@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -13,7 +13,7 @@ import { useDispatch } from "react-redux";
 import { loginSuccess } from "../../redux/slices/authSlice";
 import { validateFormByType } from "../../utils/formValidation";
 import { FORM_TYPES } from "../../constants/forms/formTypes";
-import  http  from "../../services/httpServices";
+import http from "../../services/httpServices";
 import ErrorBoundary from "../../utils/fallBackUI";
 
 const Register = () => {
@@ -24,7 +24,7 @@ const Register = () => {
   const [apiError, setApiError] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     if (name === "confirmPassword") {
       setConfirmPassword(value);
@@ -34,50 +34,53 @@ const Register = () => {
         [name]: value || "",
       }));
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setApiError("");
-    setErrors({});
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setApiError("");
+      setErrors({});
 
-    // Dynamic password match check
-    if (formData.password !== confirmPassword) {
-      setErrors({ confirmPassword: "Passwords do not match" });
-      return;
-    }
-
-    try {
-      // Validate other fields
-      const validationErrors = await validateFormByType(
-        FORM_TYPES.REGISTER,
-        formData
-      );
-      if (validationErrors) {
-        setErrors(validationErrors);
+      if (formData.password !== confirmPassword) {
+        setErrors({ confirmPassword: "Passwords do not match" });
         return;
       }
 
-      // Register user
-      const res = await http.post("/auth/register", {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-      });
-      const data = res.data;
+      try {
+        const validationErrors = await validateFormByType(
+          FORM_TYPES.REGISTER,
+          formData
+        );
+        if (validationErrors) {
+          setErrors(validationErrors);
+          return;
+        }
 
-      // Auto-login and redirect
-      dispatch(
-        loginSuccess({
-          token: data.token,
-          user: data.user,
-        })
-      );
-      navigate("/dashboard");
-    } catch (err) {
-      setApiError(err.response?.data?.message || "Registration failed");
-    }
-  };
+        const res = await http.post("/auth/register", {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        });
+
+        const data = res.data;
+        dispatch(
+          loginSuccess({
+            token: data.token,
+            user: data.user,
+          })
+        );
+        navigate("/dashboard");
+      } catch (err) {
+        setApiError(err.response?.data?.message || "Registration failed");
+      }
+    },
+    [formData, confirmPassword, dispatch, navigate]
+  );
+
+  const handleNavigateToLogin = useCallback(() => {
+    navigate("/login");
+  }, [navigate]);
 
   return (
     <ErrorBoundary>
@@ -153,7 +156,7 @@ const Register = () => {
               cursor: "pointer",
               color: "primary.main",
             }}
-            onClick={() => navigate("/login")}
+            onClick={handleNavigateToLogin}
           >
             Already have an account? Login
           </Typography>
